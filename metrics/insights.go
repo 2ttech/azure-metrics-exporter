@@ -3,6 +3,7 @@ package metrics
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/preview/monitor/mgmt/2018-03-01/insights"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -27,10 +28,11 @@ type (
 	}
 
 	PrometheusMetricResult struct {
-		Name   string
-		Labels prometheus.Labels
-		Value  float64
-		Help   string
+		Name      string
+		Labels    prometheus.Labels
+		Value     float64
+		Timestamp time.Time
+		Help      string
 	}
 )
 
@@ -71,7 +73,7 @@ func (p *MetricProber) FetchMetricsFromTarget(client *insights.MetricsClient, ta
 	return ret, err
 }
 
-func (r *AzureInsightMetricsResult) buildMetric(labels prometheus.Labels, value float64) (metric PrometheusMetricResult) {
+func (r *AzureInsightMetricsResult) buildMetric(labels prometheus.Labels, value float64, timestamp time.Time) (metric PrometheusMetricResult) {
 	// copy map to ensure we don't keep references
 	metricLabels := prometheus.Labels{}
 	for labelName, labelValue := range labels {
@@ -79,9 +81,10 @@ func (r *AzureInsightMetricsResult) buildMetric(labels prometheus.Labels, value 
 	}
 
 	metric = PrometheusMetricResult{
-		Name:   r.settings.MetricTemplate,
-		Labels: metricLabels,
-		Value:  value,
+		Name:      r.settings.MetricTemplate,
+		Labels:    metricLabels,
+		Value:     value,
+		Timestamp: timestamp,
 	}
 
 	// fallback if template is empty (should not be)
@@ -141,8 +144,8 @@ func (r *AzureInsightMetricsResult) buildMetric(labels prometheus.Labels, value 
 func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- PrometheusMetricResult) {
 	if r.Result.Value != nil {
 		// DEBUGGING
-		//data, _ := json.Marshal(r.Result)
-		//fmt.Println(string(data))
+		// data, _ := json.Marshal(r.Result)
+		// fmt.Println(string(data))
 
 		for _, metric := range *r.Result.Value {
 			if metric.Timeseries != nil {
@@ -210,6 +213,7 @@ func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- Prometheu
 								channel <- r.buildMetric(
 									metricLabels,
 									*timeseriesData.Total,
+									timeseriesData.TimeStamp.Time,
 								)
 							}
 
@@ -218,6 +222,7 @@ func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- Prometheu
 								channel <- r.buildMetric(
 									metricLabels,
 									*timeseriesData.Minimum,
+									timeseriesData.TimeStamp.Time,
 								)
 							}
 
@@ -226,6 +231,7 @@ func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- Prometheu
 								channel <- r.buildMetric(
 									metricLabels,
 									*timeseriesData.Maximum,
+									timeseriesData.TimeStamp.Time,
 								)
 							}
 
@@ -234,6 +240,7 @@ func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- Prometheu
 								channel <- r.buildMetric(
 									metricLabels,
 									*timeseriesData.Average,
+									timeseriesData.TimeStamp.Time,
 								)
 							}
 
@@ -242,6 +249,7 @@ func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- Prometheu
 								channel <- r.buildMetric(
 									metricLabels,
 									*timeseriesData.Count,
+									timeseriesData.TimeStamp.Time,
 								)
 							}
 						}
