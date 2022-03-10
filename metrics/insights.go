@@ -204,6 +204,8 @@ func (r *AzureInsightMetricsResult) SendMetricToChannel(channel chan<- Prometheu
 						for _, tag := range r.settings.TagLabels {
 							if val, ok := r.target.Tags[tag]; ok {
 								metricLabels[tag] = *val
+							} else {
+								metricLabels[tag] = ""
 							}
 						}
 
